@@ -17,7 +17,6 @@ apply_cyber_styling("File Integrity Monitor (FIM)")
 def init_fim_db():
     conn = sqlite3.connect('auth_system.db')
     c = conn.cursor()
-    # Table to store directory baselines
     c.execute('''CREATE TABLE IF NOT EXISTS fim_baselines 
                  (target_dir TEXT PRIMARY KEY, timestamp TEXT, hash_data TEXT)''')
     conn.commit()
@@ -40,15 +39,13 @@ with st.sidebar:
     
     st.divider()
     st.markdown("### ☣️ Red-Team Simulator")
-    st.caption("Use this to simulate a breach during your presentation.")
-    
     if st.button("⚠️ SIMULATE FILE INJECTION", use_container_width=True):
         # Creates a file in the current working directory
         with open("unauthorized_backdoor.txt", "w") as f:
             f.write(f"Malicious payload injected at {datetime.now()}")
         st.sidebar.warning("Malicious file injected!")
 
-# --- Core FIM Functions (SQLite Backend) ---
+# --- Core FIM Functions ---
 def get_file_hash(filepath):
     hasher = hashlib.sha256()
     try:
@@ -65,7 +62,6 @@ def scan_directory(directory_path):
         return None, 0
     for root, _, files in os.walk(directory_path):
         for file in files:
-            # Skip the database file itself to avoid self-referencing errors
             if file.endswith(".db"): continue 
             filepath = os.path.join(root, file)
             f_hash = get_file_hash(filepath)
@@ -76,7 +72,6 @@ def scan_directory(directory_path):
 def save_baseline_db(target_dir, hash_dict):
     conn = sqlite3.connect('auth_system.db')
     c = conn.cursor()
-    # Convert dict to string for storage
     hash_string = str(hash_dict)
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     c.execute("INSERT OR REPLACE INTO fim_baselines VALUES (?, ?, ?)", 
@@ -91,7 +86,6 @@ def load_baseline_db(target_dir):
     result = c.fetchone()
     conn.close()
     if result:
-        # Evaluate string back into dictionary
         return eval(result[0])
     return None
 
@@ -173,15 +167,32 @@ with col_audit:
                 st.success("✅ SYSTEM SECURE: All signatures match.")
             else:
                 st.error("🚨 INTEGRITY BREACH: Unauthorized changes detected.")
-                st.write(f"Modified: {len(modified)} | Deleted: {len(deleted)} | New: {len(new)}")
                 
+                # --- ACTION BUTTONS ---
+                ca, cb = st.columns(2)
+                with ca:
+                    if st.button("ACKNOWLEDGE & UPDATE", type="primary", use_container_width=True):
+                        save_baseline_db(target, current)
+                        st.session_state['scan_active'] = False
+                        st.rerun()
+                with cb:
+                    # NEW FEATURE: PURGE THREATS
+                    if st.button("🧨 PURGE IDENTIFIED THREATS", use_container_width=True):
+                        files_to_remove = new + modified
+                        purged_count = 0
+                        for f in files_to_remove:
+                            try:
+                                os.remove(f)
+                                purged_count += 1
+                            except: continue
+                        st.warning(f"Forensic Cleanup: {purged_count} files removed.")
+                        st.session_state['scan_active'] = False
+                        time.sleep(1)
+                        st.rerun()
+
+                st.write(f"Modified: {len(modified)} | Deleted: {len(deleted)} | New: {len(new)}")
                 if modified: st.error(f"**Modified:** {', '.join([os.path.basename(x) for x in modified])}")
                 if new: st.info(f"**New Files:** {', '.join([os.path.basename(x) for x in new])}")
-                
-                if st.button("ACKNOWLEDGE & UPDATE", type="primary", use_container_width=True):
-                    save_baseline_db(target, current)
-                    st.session_state['scan_active'] = False
-                    st.rerun()
     else:
         st.info("Execute scan to begin forensic analysis.")
 
