@@ -1,71 +1,100 @@
 import streamlit as st
 import requests
-import folium
-from streamlit_folium import folium_static
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin, urlparse
 from security_utils import check_authenticity, apply_cyber_styling
 
 # 1. Page Configuration
-st.set_page_config(page_title="Nexus Hub | IP Tracker", page_icon="📍", layout="wide")
+st.set_page_config(page_title="Anonymous Browser", page_icon="🌐", layout="wide")
+
+# 2. Security & Unified Styling
 check_authenticity()
-apply_cyber_styling("IP Tracker")
+apply_cyber_styling("Anonymous Browser")
 
-# 2. Session State Initialization (The Fix for the "Refresh" Bug)
-if 'search_result' not in st.session_state:
-    st.session_state['search_result'] = None
+# 3. Sidebar Intelligence
+with st.sidebar:
+    st.markdown("### 🛰️ Proxy Telemetry")
+    st.info("Mode: Interactive Link Rewriting\nNode: Nexus-Edge-India\nSafety: Sandbox-Enforced")
+    st.divider()
+    st.markdown("### 🧠 Technical Warning")
+    st.caption("This module uses **Server-Side Rendering (SSR)**. While it bypasses X-Frame blocks, it may not execute complex client-side JavaScript (React/Angular) due to security isolation.")
 
-st.title("📍 Geospatial IP Reconnaissance")
-st.write("Enter a **Public IPv4** to triangulate its physical routing node.")
+# 4. Proxy Engine
+def fetch_and_proxy(url):
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0',
+            'Accept-Language': 'en-US,en;q=0.9'
+        }
+        response = requests.get(url, headers=headers, timeout=10)
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        # 1. Link & Form Rewriting Engine
+        # We also need to target 'form' because login pages use forms!
+        for a in soup.find_all(['a', 'form'], href=True):
+            if a.name == 'a':
+                a['href'] = urljoin(url, a['href'])
+                # FORCE links to open in the same frame
+                a['target'] = '_self' 
+            
+        for form in soup.find_all('form', action=True):
+            form['action'] = urljoin(url, form['action'])
+            # Ensure forms don't pop out into a new tab
+            form['target'] = '_self'
+
+        # 2. Asset Reconstruction (Images, Scripts, Styles)
+        for tag in soup.find_all(['img', 'link', 'script'], src=True):
+            tag['src'] = urljoin(url, tag['src'])
+        for tag in soup.find_all(['link'], href=True):
+            tag['href'] = urljoin(url, tag['href'])
+
+        # 3. Base Tag (The Ultimate "Stay Put" Command)
+        # We insert a <base> tag at the top of the head to force all relative links to stay here
+        base_tag = soup.new_tag('base', target='_self')
+        if soup.head:
+            soup.head.insert(0, base_tag)
+
+        return soup.prettify()
+    except Exception as e:
+        return f'<div style="color:red; font-family:monospace; background:white; padding:20px;">🚨 Tunnel Error: {e}</div>'
+
+# 5. UI Logic
+st.write("Navigate the web through a hardened, proxied layer. This isolation masks your IP and strips local tracking cookies.")
 st.divider()
 
-# --- THE INPUT ---
-# We use a unique key to ensure the value is captured correctly
-query_ip = st.text_input("Target IPv4 Address:", placeholder="e.g. 1.1.1.1 or 8.8.8.8", key="main_ip_input")
+if 'current_url' not in st.session_state:
+    st.session_state['current_url'] = "https://www.wikipedia.org"
 
-col_btn1, col_btn2 = st.columns([1, 1])
-
-with col_btn1:
-    if st.button("🔍 INITIATE TACTICAL TRACE", use_container_width=True):
-        if query_ip:
-            with st.spinner(f"Querying registries for {query_ip}..."):
-                try:
-                    # THE FIX: Explicitly appending the query_ip to the URL
-                    # We add 'fields' to ensure we get ISP and ORG data specifically
-                    api_url = f"http://ip-api.com/json/{query_ip}?fields=status,message,country,regionName,city,lat,lon,timezone,isp,org,as"
-                    response = requests.get(api_url, timeout=5).json()
-                    
-                    if response.get('status') == 'success':
-                        st.session_state['search_result'] = response
-                    else:
-                        st.error(f"Trace Failed: {response.get('message', 'Invalid IP')}")
-                except Exception as e:
-                    st.error(f"Uplink Error: {e}")
-        else:
-            st.warning("Please enter an IP address first.")
-
-with col_btn2:
-    if st.button("🗑️ CLEAR SYSTEM CACHE", use_container_width=True):
-        st.session_state['search_result'] = None
+# Address Bar
+col_url, col_btn = st.columns([5, 1])
+with col_url:
+    new_url = st.text_input("📍 Destination URL:", value=st.session_state['current_url'], label_visibility="collapsed")
+with col_btn:
+    if st.button("EXECUTE TUNNEL", use_container_width=True):
+        st.session_state['current_url'] = new_url
         st.rerun()
 
-# --- DISPLAY LOGIC (Only shows if a search was successful) ---
-if st.session_state['search_result']:
-    res = st.session_state['search_result']
-    
-    st.success(f"✅ Trace Complete: {res['city']}, {res['country']}")
-    
-    # These metrics will now correctly show Cloudflare for 1.1.1.1
-    c1, c2, c3 = st.columns(3)
-    c1.metric("ISP / Provider", res.get('isp'))
-    c2.metric("Organization", res.get('org'))
-    c3.metric("AS Number", res.get('as'))
+# 6. The Virtual Display
+st.markdown(f"**Browsing as:** `Nexus-Node-Central` | **Target Node:** `{st.session_state['current_url']}`")
 
-    # Map Rendering
-    lat, lon = res['lat'], res['lon']
-    m = folium.Map(location=[lat, lon], zoom_start=12, tiles='CartoDB dark_matter')
-    folium.Marker([lat, lon], popup=f"IP: {query_ip}").add_to(m)
-    folium_static(m, width=1100)
-    
-    st.info(f"📍 Forensic Note: Coordinate ({lat}, {lon}) identifies the ISP Gateway node.")
 
+
+with st.spinner("Establishing secure tunnel and rewriting DOM links..."):
+    raw_html = fetch_and_proxy(st.session_state['current_url'])
+    
+    # We wrap the HTML content in a CSS-styled div INSIDE the iframe component
+    # This avoids the "unclosed tag" glitch
+    styled_html = f"""
+    <div style="border: 4px solid #ff4b4b; border-radius: 15px; overflow: hidden; background: white; font-family: sans-serif;">
+        <div style="background: #ff4b4b; color: white; padding: 5px 15px; font-size: 12px; font-weight: bold;">
+            NEXUS SECURE GATEWAY // ENCRYPTED SESSION
+        </div>
+        {raw_html}
+    </div>
+    """
+    
+    st.components.v1.html(styled_html, height=800, scrolling=True)
+
+# Footer
 st.markdown("---")
-st.caption("NEXUS IP RECONNAISSANCE SYSTEM // v3.0")
+st.caption("NEXUS ANONYMOUS BROWSING SYSTEM // v3.0")
