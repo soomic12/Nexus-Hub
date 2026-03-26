@@ -13,7 +13,7 @@ st.set_page_config(page_title="File Integrity Monitor", page_icon="🛡️", lay
 check_authenticity()
 apply_cyber_styling("File Integrity Monitor (FIM)")
 
-# --- DATABASE INITIALIZATION ---
+# --- DATABASE INITIALIZATION (Persistent Vault) ---
 def init_fim_db():
     conn = sqlite3.connect('auth_system.db')
     c = conn.cursor()
@@ -24,7 +24,7 @@ def init_fim_db():
 
 init_fim_db()
 
-# --- PERSISTENT STATE ---
+# --- PERSISTENT SESSION STATE ---
 if 'scan_active' not in st.session_state:
     st.session_state['scan_active'] = False
 if 'current_hashes' not in st.session_state:
@@ -32,18 +32,20 @@ if 'current_hashes' not in st.session_state:
 if 'scan_target' not in st.session_state:
     st.session_state['scan_target'] = ""
 
-# 3. Sidebar Intelligence & Simulator
+# 3. Sidebar Intelligence & Red-Team Simulator
 with st.sidebar:
     st.markdown("### 🛡️ Defense Engine")
-    st.info("Algorithm: SHA-256\nStorage: SQLite (Persistent)\nScope: Recursive Hash Audit")
+    st.info("Algorithm: SHA-256\nStorage: SQLite Vault\nEnvironment: Streamlit Cloud (Ephemeral)")
     
     st.divider()
     st.markdown("### ☣️ Red-Team Simulator")
+    st.caption("Inject a real file into the cloud server to test detection.")
+    
     if st.button("⚠️ SIMULATE FILE INJECTION", use_container_width=True):
-        # Creates a file in the current working directory
+        # This physically creates a file on the Streamlit Cloud disk
         with open("unauthorized_backdoor.txt", "w") as f:
-            f.write(f"Malicious payload injected at {datetime.now()}")
-        st.sidebar.warning("Malicious file injected!")
+            f.write(f"--- MALICIOUS PAYLOAD DETECTED ---\nOrigin: Simulated Breach\nTimestamp: {datetime.now()}\nStatus: Active Persistence")
+        st.sidebar.warning("Backdoor 'unauthorized_backdoor.txt' injected into root!")
 
 # --- Core FIM Functions ---
 def get_file_hash(filepath):
@@ -62,6 +64,7 @@ def scan_directory(directory_path):
         return None, 0
     for root, _, files in os.walk(directory_path):
         for file in files:
+            # Skip DB files to avoid locking issues during scans
             if file.endswith(".db"): continue 
             filepath = os.path.join(root, file)
             f_hash = get_file_hash(filepath)
@@ -105,7 +108,9 @@ st.divider()
 # --- COMMAND BAR ---
 c_input, c_base, c_scan = st.columns([2, 1, 1])
 with c_input:
+    # On Streamlit Cloud, this defaults to /mount/src/nexus-hub
     target_path = st.text_input("Target Directory:", value=os.getcwd())
+
 with c_base:
     st.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
     if st.button("CALCULATE BASELINE", use_container_width=True):
@@ -115,6 +120,7 @@ with c_base:
             st.success(f"Baseline Secure: {count} files mapped.")
             time.sleep(1)
             st.rerun()
+
 with c_scan:
     st.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
     if st.button("START DEEP SCAN NOW", type="primary", use_container_width=True):
@@ -153,6 +159,13 @@ with col_zones:
 
 with col_audit:
     st.markdown("### 🔍 Integrity Audit")
+    
+    # --- FORENSIC EVIDENCE VIEWER (PROVES THE FILE IS REAL) ---
+    if os.path.exists("unauthorized_backdoor.txt"):
+        st.warning("⚠️ **EVIDENCE LOCATED:** `unauthorized_backdoor.txt` detected on disk.")
+        with open("unauthorized_backdoor.txt", "r") as f:
+            st.code(f.read(), language="text")
+    
     if st.session_state['scan_active']:
         target = st.session_state['scan_target']
         original = load_baseline_db(target)
@@ -164,11 +177,10 @@ with col_audit:
             modified = [f for f, h in current.items() if f in original and original[f] != h]
             
             if not new and not deleted and not modified:
-                st.success("✅ SYSTEM SECURE: All signatures match.")
+                st.success("✅ SYSTEM SECURE: Integrity Verified.")
             else:
-                st.error("🚨 INTEGRITY BREACH: Unauthorized changes detected.")
+                st.error("🚨 INTEGRITY BREACH: Unauthorized modifications found.")
                 
-                # --- ACTION BUTTONS ---
                 ca, cb = st.columns(2)
                 with ca:
                     if st.button("ACKNOWLEDGE & UPDATE", type="primary", use_container_width=True):
@@ -176,18 +188,12 @@ with col_audit:
                         st.session_state['scan_active'] = False
                         st.rerun()
                 with cb:
-                    # NEW FEATURE: PURGE THREATS
                     if st.button("🧨 PURGE IDENTIFIED THREATS", use_container_width=True):
                         files_to_remove = new + modified
-                        purged_count = 0
                         for f in files_to_remove:
-                            try:
-                                os.remove(f)
-                                purged_count += 1
+                            try: os.remove(f)
                             except: continue
-                        st.warning(f"Forensic Cleanup: {purged_count} files removed.")
                         st.session_state['scan_active'] = False
-                        time.sleep(1)
                         st.rerun()
 
                 st.write(f"Modified: {len(modified)} | Deleted: {len(deleted)} | New: {len(new)}")
