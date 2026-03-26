@@ -114,17 +114,20 @@ with c_input:
 with c_base:
     st.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
     if st.button("CALCULATE BASELINE", use_container_width=True):
-        # SANITY CHECK: Don't allow baselining if the simulator file is present
+        # 1. AUTO-CLEAN: If the simulation file exists, delete it immediately
         if os.path.exists("unauthorized_backdoor.txt"):
-            st.error("🚨 **CLEAN-ROOM VIOLATION:** Remove `unauthorized_backdoor.txt` before establishing a baseline!")
-            if st.button("Auto-Clean & Retry"):
+            try:
                 os.remove("unauthorized_backdoor.txt")
-                st.rerun()
-        else:
+                st.toast("🧹 Auto-Clean: Backdoor file removed from baseline.")
+            except:
+                st.error("🚨 Clean-Room Error: Could not remove backdoor file.")
+        
+        # 2. PROCEED TO HASHING
+        with st.spinner("Establishing secure baseline..."):
             res, count = scan_directory(target_path)
             if res:
                 save_baseline_db(target_path, res)
-                st.success(f"Baseline Secure: {count} files mapped.")
+                st.success(f"✅ Baseline Secure: {count} files mapped.")
                 time.sleep(1)
                 st.rerun()
 
