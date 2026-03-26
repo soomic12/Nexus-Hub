@@ -161,17 +161,19 @@ with col_audit:
     st.markdown("### 🔍 Integrity Audit")
     
     # --- FORENSIC EVIDENCE VIEWER (PROVES THE FILE IS REAL) ---
-    if os.path.exists("unauthorized_backdoor.txt"):
-        st.warning("⚠️ **EVIDENCE LOCATED:** `unauthorized_backdoor.txt` detected on disk.")
-        with open("unauthorized_backdoor.txt", "r") as f:
-            st.code(f.read(), language="text")
-    
     if st.session_state['scan_active']:
         target = st.session_state['scan_target']
         original = load_baseline_db(target)
         current = st.session_state['current_hashes']
         
+        # --- FORENSIC EVIDENCE VIEWER (Now inside the scan logic) ---
+        if os.path.exists("unauthorized_backdoor.txt"):
+            st.warning("⚠️ **EVIDENCE LOCATED:** `unauthorized_backdoor.txt` detected on disk.")
+            with open("unauthorized_backdoor.txt", "r") as f:
+                st.code(f.read(), language="text")
+        
         if original:
+            new = [f for f in current if f not in original]
             new = [f for f in current if f not in original]
             deleted = [f for f in original if f not in current]
             modified = [f for f, h in current.items() if f in original and original[f] != h]
@@ -188,12 +190,10 @@ with col_audit:
                         st.session_state['scan_active'] = False
                         st.rerun()
                 with cb:
-                    if st.button("🧨 PURGE IDENTIFIED THREATS", use_container_width=True):
-                        files_to_remove = new + modified
-                        for f in files_to_remove:
-                            try: os.remove(f)
-                            except: continue
-                        st.session_state['scan_active'] = False
+                    if st.button("🧨 PURGE IDENTIFIED THREATS"):
+                        if os.path.exists("unauthorized_backdoor.txt"):
+                            os.remove("unauthorized_backdoor.txt")
+                        st.session_state['scan_active'] = False # This hides the audit results
                         st.rerun()
 
                 st.write(f"Modified: {len(modified)} | Deleted: {len(deleted)} | New: {len(new)}")
