@@ -29,15 +29,30 @@ def fetch_and_proxy(url):
         response = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # Link Rewriting Engine
-        for a in soup.find_all('a', href=True):
-            a['href'] = urljoin(url, a['href']) 
+        # 1. Link & Form Rewriting Engine
+        # We also need to target 'form' because login pages use forms!
+        for a in soup.find_all(['a', 'form'], href=True):
+            if a.name == 'a':
+                a['href'] = urljoin(url, a['href'])
+                # FORCE links to open in the same frame
+                a['target'] = '_self' 
+            
+        for form in soup.find_all('form', action=True):
+            form['action'] = urljoin(url, form['action'])
+            # Ensure forms don't pop out into a new tab
+            form['target'] = '_self'
 
-        # Asset Reconstruction
+        # 2. Asset Reconstruction (Images, Scripts, Styles)
         for tag in soup.find_all(['img', 'link', 'script'], src=True):
             tag['src'] = urljoin(url, tag['src'])
         for tag in soup.find_all(['link'], href=True):
             tag['href'] = urljoin(url, tag['href'])
+
+        # 3. Base Tag (The Ultimate "Stay Put" Command)
+        # We insert a <base> tag at the top of the head to force all relative links to stay here
+        base_tag = soup.new_tag('base', target='_self')
+        if soup.head:
+            soup.head.insert(0, base_tag)
 
         return soup.prettify()
     except Exception as e:
