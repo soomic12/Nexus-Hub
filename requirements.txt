@@ -1,7 +1,6 @@
 streamlit
 numpy
 pandas
-sqlite3
 haslib
 os
 requests
