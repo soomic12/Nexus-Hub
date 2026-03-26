@@ -178,9 +178,11 @@ with col_audit:
         
         # --- FORENSIC EVIDENCE VIEWER (Now inside the scan logic) ---
         if os.path.exists("unauthorized_backdoor.txt"):
-            st.warning("⚠️ **EVIDENCE LOCATED:** `unauthorized_backdoor.txt` detected on disk.")
-            with open("unauthorized_backdoor.txt", "r") as f:
-                st.code(f.read(), language="text")
+            # ONLY show this if the file is NOT yet part of the trusted baseline
+            if original and "unauthorized_backdoor.txt" not in [os.path.basename(f) for f in original.keys()]:
+                st.warning("⚠️ **EVIDENCE LOCATED:** `unauthorized_backdoor.txt` detected on disk.")
+                with open("unauthorized_backdoor.txt", "r") as f:
+                    st.code(f.read(), language="text")
         
         if original:
             new = [f for f in current if f not in original]
