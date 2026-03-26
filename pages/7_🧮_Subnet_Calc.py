@@ -37,30 +37,19 @@ if st.button("CALCULATE NETWORK ARCHITECTURE", use_container_width=True):
         
         st.success(f"✅ Network Topology Calculated for {network_string}")
         
-        # --- CORE METRIC CARDS (Sleek Professional Version) ---
+        # --- CORE METRIC CARDS ---
         st.markdown("### 📊 Core Network Metrics")
         
-        # We use a custom style block to ensure the text isn't "Giant"
-        st.markdown(f'''
-        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
-            <div style="flex: 1; min-width: 200px; background-color: #0e1117; border: 1px solid #00ffcc; border-radius: 5px; padding: 10px; text-align: center;">
-                <div style="color: #00ffcc; font-size: 0.8rem; text-transform: uppercase;">Network ID</div>
-                <div style="color: #ffffff; font-size: 1.1rem; font-family: monospace;">{network.network_address}</div>
-            </div>
-            <div style="flex: 1; min-width: 200px; background-color: #0e1117; border: 1px solid #00ffcc; border-radius: 5px; padding: 10px; text-align: center;">
-                <div style="color: #00ffcc; font-size: 0.8rem; text-transform: uppercase;">Broadcast</div>
-                <div style="color: #ffffff; font-size: 1.1rem; font-family: monospace;">{network.broadcast_address}</div>
-            </div>
-            <div style="flex: 1; min-width: 200px; background-color: #0e1117; border: 1px solid #00ffcc; border-radius: 5px; padding: 10px; text-align: center;">
-                <div style="color: #00ffcc; font-size: 0.8rem; text-transform: uppercase;">Subnet Mask</div>
-                <div style="color: #ffffff; font-size: 1.1rem; font-family: monospace;">{network.netmask}</div>
-            </div>
-            <div style="flex: 1; min-width: 200px; background-color: #0e1117; border: 1px solid #00ffcc; border-radius: 5px; padding: 10px; text-align: center;">
-                <div style="color: #00ffcc; font-size: 0.8rem; text-transform: uppercase;">Usable Hosts</div>
-                <div style="color: #ffffff; font-size: 1.1rem; font-family: monospace;">{usable_count:,}</div>
-            </div>
-        </div>
-        ''', unsafe_allow_html=True)
+        r1c1, r1c2, r1c3, r1c4 = st.columns(4)
+        with r1c1:
+            st.metric("Network ID", str(network.network_address))
+        with r1c2:
+            st.metric("Broadcast", str(network.broadcast_address))
+        with r1c3:
+            st.metric("Subnet Mask", str(network.netmask))
+        with r1c4:
+            usable_count = max(0, network.num_addresses - 2) if network.prefixlen < 31 else 0
+            st.metric("Usable Hosts", f"{usable_count:,}")
             
         # --- SAFE USABLE IP RANGE (Memory Efficient) ---
         if network.prefixlen <= 30:
