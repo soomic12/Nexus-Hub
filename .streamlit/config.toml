@@ -1,0 +1,17 @@
+[theme]
+primaryColor="#b24bf3"
+backgroundColor="#0f0914"
+secondaryBackgroundColor="#1e122b"
+textColor="#e0d4f5"
+font="monospace"
+
+[server]
+maxUploadSize = 1024
+maxMessageSize = 1024
+
+[browser]
+gatherUsageStats = false
+
+# This prevents the websocket from timing out during massive uploads
+[network]
+max_message_size = 1024
