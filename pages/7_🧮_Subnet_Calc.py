@@ -3,7 +3,7 @@ import ipaddress
 from security_utils import check_authenticity, apply_cyber_styling
 
 # 1. Page Configuration
-st.set_page_config(page_title="Subnet Calculator", page_icon="🧮", layout="wide")
+st.set_page_config(page_title="Nexus Hub | Subnet Calculator", page_icon="🧮", layout="wide")
 
 # 2. Security & Unified Styling
 check_authenticity()
@@ -18,60 +18,57 @@ with st.sidebar:
     st.caption("**/24:** 256 IPs (Class C)\n**/16:** 65,536 IPs (Class B)\n**/8:** 16.7M IPs (Class A)")
 
 # 4. Main UI Logic
+st.title("🧮 IPv4 Subnet Architecture Engine")
 st.write("Calculate network boundaries, broadcast addresses, and usable host ranges for enterprise IT planning.")
 st.divider()
 
 col_input, col_cidr = st.columns([2, 1])
 with col_input:
-    ip_input = st.text_input("Enter Target IP Address (e.g., 192.168.1.0):", "192.168.1.0")
+    # Placeholder for input
+    ip_input = st.text_input("Enter Target IP Address:", placeholder="e.g., 192.168.1.0", value="192.168.1.0")
 with col_cidr:
     cidr_input = st.number_input("CIDR Notation (0-32):", min_value=0, max_value=32, value=24)
 
 if st.button("CALCULATE NETWORK ARCHITECTURE", use_container_width=True):
     try:
         network_string = f"{ip_input}/{cidr_input}"
+        # strict=False allows users to enter an IP that isn't the base network address
         network = ipaddress.IPv4Network(network_string, strict=False)
         
-        st.success("✅ Network Topology Calculated.")
+        st.success(f"✅ Network Topology Calculated for {network_string}")
         
         # --- CORE METRIC CARDS ---
         st.markdown("### 📊 Core Network Metrics")
         
-        r1c1, r1c2 = st.columns(2)
+        r1c1, r1c2, r1c3, r1c4 = st.columns(4)
         with r1c1:
-            st.markdown(f'<div class="cyber-card"><div class="card-title">Network ID</div><div class="card-value">{network.network_address}</div></div>', unsafe_allow_html=True)
+            st.metric("Network ID", str(network.network_address))
         with r1c2:
-            st.markdown(f'<div class="cyber-card"><div class="card-title">Broadcast Address</div><div class="card-value">{network.broadcast_address}</div></div>', unsafe_allow_html=True)
+            st.metric("Broadcast", str(network.broadcast_address))
+        with r1c3:
+            st.metric("Subnet Mask", str(network.netmask))
+        with r1c4:
+            usable_count = max(0, network.num_addresses - 2) if network.prefixlen < 31 else 0
+            st.metric("Usable Hosts", f"{usable_count:,}")
             
-        r2c1, r2c2 = st.columns(2)
-        with r2c1:
-            st.markdown(f'<div class="cyber-card"><div class="card-title">Subnet Mask</div><div class="card-value">{network.netmask}</div></div>', unsafe_allow_html=True)
-        with r2c2:
-            usable_hosts = max(0, network.num_addresses - 2)
-            st.markdown(f'<div class="cyber-card"><div class="card-title">Usable Hosts</div><div class="card-value">{usable_hosts:,}</div></div>', unsafe_allow_html=True)
-            
-        # --- USABLE IP RANGE ---
-        hosts = list(network.hosts())
-        start_ip = hosts[0] if hosts else "N/A"
-        end_ip = hosts[-1] if hosts else "N/A"
-        
-        st.markdown(f"""
-        <div class="cyber-card" style="text-align: left; border-left: 5px solid #00ffcc;">
-            <div class="card-title">🖥️ Usable Host IP Range</div>
-            <div class="card-value" style="font-size: 1.4rem; color: #ffffff;">
-                {start_ip} <span style="color: #00ffcc;">&rarr;</span> {end_ip}
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        # --- SAFE USABLE IP RANGE (Memory Efficient) ---
+        if network.prefixlen <= 30:
+            start_ip = network.network_address + 1
+            end_ip = network.broadcast_address - 1
+            st.info(f"🖥️ **Usable Host IP Range:** `{start_ip}` → `{end_ip}`")
+        else:
+            st.warning("⚠️ This subnet size (P2P/Loopback) does not support a standard usable host range.")
 
         # --- DEEP INSPECTION DATA ---
         st.divider()
         col_map, col_details = st.columns([1, 1])
 
         with col_map:
-            st.markdown("### 🗺️ Subnetting Visualization")
-            
-            st.caption("Subnetting divides a large network into smaller, manageable segments to reduce broadcast traffic and improve security.")
+            st.markdown("### 🗺️ Binary Logic Visualization")
+            binary_mask = '.'.join([bin(int(x)+256)[3:] for x in str(network.netmask).split('.')])
+            st.write("**Netmask Binary:**")
+            st.code(binary_mask, language="text")
+            st.caption("The mask determines which bits represent the Network ID vs the Host ID.")
 
         with col_details:
             st.markdown("### 🔍 Technical Specifications")
@@ -84,14 +81,11 @@ if st.button("CALCULATE NETWORK ARCHITECTURE", use_container_width=True):
             else: ip_class = "Multicast/Experimental"
             
             # Routing Type
-            route_type = "Private (Internal)" if network.is_private else "Public (Internet)"
-            binary_mask = '.'.join([bin(int(x)+256)[3:] for x in str(network.netmask).split('.')])
+            route_type = "Private (Internal RFC 1918)" if network.is_private else "Public (Internet Routable)"
 
             st.write(f"**Network Class:** `{ip_class}`")
             st.write(f"**Routing Type:** `{route_type}`")
             st.write(f"**Wildcard Mask:** `{network.hostmask}`")
-            st.write("**Binary Representation:**")
-            st.code(binary_mask, language="text")
 
     except ValueError:
         st.error("🚨 Invalid IP/CIDR configuration. Please check your notation.")
