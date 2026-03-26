@@ -114,12 +114,19 @@ with c_input:
 with c_base:
     st.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
     if st.button("CALCULATE BASELINE", use_container_width=True):
-        res, count = scan_directory(target_path)
-        if res:
-            save_baseline_db(target_path, res)
-            st.success(f"Baseline Secure: {count} files mapped.")
-            time.sleep(1)
-            st.rerun()
+        # SANITY CHECK: Don't allow baselining if the simulator file is present
+        if os.path.exists("unauthorized_backdoor.txt"):
+            st.error("🚨 **CLEAN-ROOM VIOLATION:** Remove `unauthorized_backdoor.txt` before establishing a baseline!")
+            if st.button("Auto-Clean & Retry"):
+                os.remove("unauthorized_backdoor.txt")
+                st.rerun()
+        else:
+            res, count = scan_directory(target_path)
+            if res:
+                save_baseline_db(target_path, res)
+                st.success(f"Baseline Secure: {count} files mapped.")
+                time.sleep(1)
+                st.rerun()
 
 with c_scan:
     st.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
